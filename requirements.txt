@@ -2,3 +2,5 @@ bibtexparser==1.4.3
 SQLAlchemy==2.0.45
 psycopg2-binary==2.9.10
 pandas==2.3.3
+scystream-sdk==1.2.2
+pytest==9.0.1

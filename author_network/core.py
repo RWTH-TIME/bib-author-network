@@ -2,6 +2,31 @@ from itertools import combinations
 import pandas as pd
 
 
+def normalize_author_name(name: str) -> str:
+    """
+    Normalize personal names so that:
+    - Commas are ignored
+    - Order of components does not matter
+    - Lowercase
+    - Whitespace collapsed
+    """
+    if not name:
+        return ""
+
+    # Remove commas
+    name = name.replace(",", " ")
+
+    # Collapse multiple spaces
+    parts = [p.strip() for p in name.split() if p.strip()]
+    if not parts:
+        return ""
+
+    # Sort parts alphabetically (order becomes irrelevant)
+    parts = sorted(parts, key=str.lower)
+
+    return " ".join(parts).lower()
+
+
 def build_author_index(df):
     """
     Convert an author-location table into a lookup dictionary.
@@ -9,9 +34,11 @@ def build_author_index(df):
     index = {}
 
     for _, row in df.iterrows():
-        name = str(row.get("author", "")).strip()
-        if not name:
+        name_raw = str(row.get("author", "")).strip()
+        if not name_raw:
             continue
+
+        name = normalize_author_name(name_raw)
 
         index[name] = {
             "institution": row.get("institution"),
@@ -30,7 +57,7 @@ def _extract_authors(author_field: str):
         return []
 
     return [
-        a.strip()
+        normalize_author_name(a)
         for a in author_field.replace("\n", " ").split(" and ")
         if a.strip()
     ]

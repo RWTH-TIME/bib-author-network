@@ -8,7 +8,7 @@ from scystream.sdk.env.settings import (
 )
 from scystream.sdk.file_handling.s3_manager import S3Operations
 from sqlalchemy import create_engine
-from author_network.author_network import build_author_index, coauthor_pairs
+from author_network.core import build_author_index, coauthor_pairs
 import pandas as pd
 import bibtexparser
 
@@ -56,7 +56,7 @@ class BibAuthorNetwork(EnvSettings):
     author_network_output: AuthorNetwork
 
 
-# @entrypoint(BibAuthorNetwork)
+@entrypoint(BibAuthorNetwork)
 def create_author_network_graph(settings):
     S3Operations.download(settings.bib_input, "input.bib")
 
@@ -70,38 +70,3 @@ def create_author_network_graph(settings):
     edges = coauthor_pairs(bib_db, author_index)
 
     write_df_to_postgres(edges, settings.author_network_output)
-
-
-if __name__ == "__main__":
-    # TODO:
-    # - Tests schreiben
-    # - Pipeline
-    # - CBC.yaml
-    settings = BibAuthorNetwork(
-        bib_input=BIBInput(
-            S3_HOST="http://localhost",
-            S3_PORT="9000",
-            S3_ACCESS_KEY="minioadmin",
-            S3_SECRET_KEY="minioadmin",
-            FILE_PATH="",
-            FILE_NAME="input",
-            FILE_EXT="bib",
-            BUCKET_NAME="test",
-        ),
-        author_locations_input=AuthorLocations(
-            DB_TABLE="aff_results",
-            PG_HOST="localhost",
-            PG_PASS="postgres",
-            PG_PORT="5432",
-            PG_USER="postgres"
-        ),
-        author_network_output=AuthorNetwork(
-            DB_TABLE="netw_out",
-            PG_HOST="localhost",
-            PG_PASS="postgres",
-            PG_PORT="5432",
-            PG_USER="postgres"
-        )
-    )
-
-    create_author_network_graph(settings)
