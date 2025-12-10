@@ -5,7 +5,8 @@ docker_image: ghcr.io/rwth-time/bib-author-network/bib-author-network:latest
 entrypoints:
   create_author_network_graph:
     description: Creates a table of co-authors and their corresponding lat/lon 
-    envs: null
+    envs:
+      BIB_DOWNLOAD_PATH: /tmp/input.bib
     inputs:
       author_locations_input:
         config:
