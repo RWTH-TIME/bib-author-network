@@ -1,7 +1,7 @@
 name: Bib Author Network 
 author: Paul Kalhorn
 description: Builds a Network Table of Co-Authors and their location
-docker_image: <tbs>
+docker_image: ghcr.io/rwth-time/bib-author-network/bib-author-network:latest
 entrypoints:
   create_author_network_graph:
     description: Creates a table of co-authors and their corresponding lat/lon 
