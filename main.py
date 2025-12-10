@@ -51,6 +51,8 @@ class BIBInput(FileSettings, InputSettings):
 
 
 class BibAuthorNetwork(EnvSettings):
+    BIB_DOWNLOAD_PATH: str = "/tmp/input.bib"
+
     bib_input: BIBInput
     author_locations_input: AuthorLocations
     author_network_output: AuthorNetwork
@@ -58,9 +60,9 @@ class BibAuthorNetwork(EnvSettings):
 
 @entrypoint(BibAuthorNetwork)
 def create_author_network_graph(settings):
-    S3Operations.download(settings.bib_input, "input.bib")
+    S3Operations.download(settings.bib_input, settings.BIB_DOWNLOAD_PATH)
 
-    with open("input.bib") as bibtex_file:
+    with open(settings.BIB_DOWNLOAD_PATH) as bibtex_file:
         bib_db = bibtexparser.load(bibtex_file)
 
     # Read Table
