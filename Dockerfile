@@ -7,4 +7,4 @@ RUN pip install --trusted-host pypi.python.org -r requirements.txt
 COPY . ./
 
 # run the project
-CMD ["python3", "-m", "main"]
+CMD ["python3", "main"]
