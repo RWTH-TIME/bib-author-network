@@ -1,0 +1,140 @@
+name: CI
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  lint-python:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          cache: "pip"
+
+      - name: Run flake8
+        uses: py-actions/flake8@v2
+
+  validate-compute-block:
+    name: Validate Compute Block Config
+    runs-on: ubuntu-latest
+    needs: lint-python
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+
+      - name: Intall dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Check cbcs
+        run: |
+          python3 - <<'EOF'
+          import main
+
+          from scystream.sdk.config import load_config, get_compute_block
+          from scystream.sdk.config.config_loader import _compare_configs
+          from pathlib import Path
+
+          CBC_PATH = Path("cbc.yaml")
+
+          if not CBC_PATH.exists():
+              raise FileNotFoundError("cbc.yaml not found in repo root.")
+
+          block_from_code = get_compute_block()
+          block_from_yaml = load_config(str(CBC_PATH))
+
+          _compare_configs(block_from_code, block_from_yaml)
+
+          print("cbc.yaml matches python code definition")
+          EOF
+  
+  run-test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: validate-compute-block
+    services:
+      minio:
+        image: lazybit/minio
+        ports:
+          - 9000:9000
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live || exit 1"
+          --health-interval 5s
+          --health-retries 5
+          --health-timeout 5s
+      postgres:
+        image: postgres:15
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-retries=10
+          --health-timeout=5s
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Tests
+        run: pytest -vv
+
+  build:
+    name: Build docker image
+    runs-on: ubuntu-latest
+    needs: run-test
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/bib-author-network
+          tags: |
+            type=ref, event=pr
+            type=raw, value=latest, enable=${{ (github.ref == format('refs/heads/{0}', 'main')) }}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
