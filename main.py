@@ -1,3 +1,4 @@
+import hashlib
 from scystream.sdk.core import entrypoint
 from scystream.sdk.env.settings import (
     PostgresSettings,
@@ -7,10 +8,26 @@ from scystream.sdk.env.settings import (
     FileSettings
 )
 from scystream.sdk.file_handling.s3_manager import S3Operations
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.sql import quoted_name
 from author_network.core import build_author_index, coauthor_pairs
 import pandas as pd
 import bibtexparser
+
+
+def _normalize_table_name(table_name: str) -> str:
+    max_length = 63
+    if len(table_name) <= max_length:
+        return table_name
+    digest = hashlib.sha1(table_name.encode("utf-8")).hexdigest()[:10]
+    prefix_length = max_length - len(digest) - 1
+    return f"{table_name[:prefix_length]}_{digest}"
+
+
+def _resolve_db_table(settings: PostgresSettings) -> str:
+    normalized_name = _normalize_table_name(settings.DB_TABLE)
+    settings.DB_TABLE = normalized_name
+    return normalized_name
 
 
 def _make_engine(settings: PostgresSettings):
@@ -21,14 +38,17 @@ def _make_engine(settings: PostgresSettings):
 
 
 def read_table_from_postgres(settings: PostgresSettings) -> pd.DataFrame:
+    resolved_table_name = _resolve_db_table(settings)
     engine = _make_engine(settings)
-    query = f"SELECT * FROM {settings.DB_TABLE};"
+    query = text(f'SELECT * FROM "{resolved_table_name}";')
     return pd.read_sql(query, engine)
 
 
 def write_df_to_postgres(df: pd.DataFrame, settings: PostgresSettings):
+    resolved_table_name = _resolve_db_table(settings)
     engine = _make_engine(settings)
-    df.to_sql(settings.DB_TABLE, engine, if_exists="replace", index=False)
+    table_name = quoted_name(resolved_table_name, quote=True)
+    df.to_sql(table_name, engine, if_exists="replace", index=False)
 
 
 def load_bib_file(path: str):
