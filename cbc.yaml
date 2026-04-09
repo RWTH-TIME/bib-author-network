@@ -13,7 +13,7 @@ entrypoints:
           author_locations_DB_TABLE: null
           author_locations_DB_DSN: null
         description: We expect the table to have the colums (author, lat, lon)
-        type: pg_table
+        type: database_table
       bib_input:
         config:
           bib_file_BUCKET_NAME: null
@@ -32,4 +32,4 @@ entrypoints:
           author_network_DB_TABLE: null
           author_network_DB_DSN: null
         description: A table having the following colums (bib_id, author_1_id, author_1_lat, author_1_lon, author_2_id, author_2_lat, author_2_lon)
-        type: pg_table
+        type: database_table
