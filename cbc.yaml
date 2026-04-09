@@ -1,21 +1,18 @@
-name: Bib Author Network 
+name: Bib Author Network
 author: Paul Kalhorn
 description: Builds a Network Table of Co-Authors and their location
 docker_image: ghcr.io/rwth-time/bib-author-network/bib-author-network:latest
 entrypoints:
   create_author_network_graph:
-    description: Creates a table of co-authors and their corresponding lat/lon 
+    description: Creates a table of co-authors and their corresponding lat/lon
     envs:
       BIB_DOWNLOAD_PATH: /tmp/input.bib
     inputs:
       author_locations_input:
         config:
           author_locations_DB_TABLE: null
-          author_locations_PG_HOST: null
-          author_locations_PG_PASS: null
-          author_locations_PG_PORT: null
-          author_locations_PG_USER: null
-        description: We expect the table to have the colums (author, lat, lon) 
+          author_locations_DB_DSN: null
+        description: We expect the table to have the colums (author, lat, lon)
         type: pg_table
       bib_input:
         config:
@@ -27,15 +24,12 @@ entrypoints:
           bib_file_S3_HOST: null
           bib_file_S3_PORT: null
           bib_file_S3_SECRET_KEY: null
-        description: BIB File 
+        description: BIB File
         type: file
     outputs:
       author_network_output:
         config:
           author_network_DB_TABLE: null
-          author_network_PG_HOST: null
-          author_network_PG_PASS: null
-          author_network_PG_PORT: null
-          author_network_PG_USER: null
-        description: A table having the following colums (bib_id, author_1_id, author_1_lat, author_1_lon, author_2_id, author_2_lat, author_2_lon) 
+          author_network_DB_DSN: null
+        description: A table having the following colums (bib_id, author_1_id, author_1_lat, author_1_lon, author_2_id, author_2_lat, author_2_lon)
         type: pg_table

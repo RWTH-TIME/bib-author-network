@@ -37,6 +37,7 @@ def ensure_bucket(s3, bucket):
 # Fixtures
 # -----------------------------
 
+
 @pytest.fixture
 def s3_minio():
     client = boto3.client(
@@ -110,20 +111,15 @@ def test_author_network_entrypoint(s3_minio, postgres_conn):
     postgres_conn.commit()
 
     # Create table
-    create_cols = ", ".join(
-        f"{col} TEXT" for col in df_locations.columns
-    )
+    create_cols = ", ".join(f"{col} TEXT" for col in df_locations.columns)
     cur.execute(f"CREATE TABLE author_locations ({create_cols});")
 
     # Insert rows
     for _, row in df_locations.iterrows():
         values = ", ".join(
-            f"'{str(row[c]).replace('\'', '')}'"
-            for c in df_locations.columns
+            f"'{str(row[c]).replace("'", '')}'" for c in df_locations.columns
         )
-        cur.execute(
-            f"INSERT INTO author_locations VALUES ({values});"
-        )
+        cur.execute(f"INSERT INTO author_locations VALUES ({values});")
     postgres_conn.commit()
 
     # -----------------------------------
@@ -140,19 +136,11 @@ def test_author_network_entrypoint(s3_minio, postgres_conn):
         "bib_file_FILE_PATH": "",
         "bib_file_FILE_NAME": "input",
         "bib_file_FILE_EXT": "bib",
-
         # Input Postgres: author locations
-        "author_locations_PG_HOST": "127.0.0.1",
-        "author_locations_PG_PORT": "5432",
-        "author_locations_PG_USER": POSTGRES_USER,
-        "author_locations_PG_PASS": POSTGRES_PWD,
+        "author_locations_DB_DSN": f"postgresql://{POSTGRES_USER}:{POSTGRES_PWD}@127.0.0.1:5432/postgres",
         "author_locations_DB_TABLE": "author_locations",
-
         # Output Postgres: edges
-        "author_network_PG_HOST": "127.0.0.1",
-        "author_network_PG_PORT": "5432",
-        "author_network_PG_USER": POSTGRES_USER,
-        "author_network_PG_PASS": POSTGRES_PWD,
+        "author_network_DB_DSN": f"postgresql://{POSTGRES_USER}:{POSTGRES_PWD}@127.0.0.1:5432/postgres",
         "author_network_DB_TABLE": "coauthor_edges",
     }
 
@@ -203,5 +191,7 @@ def test_author_network_entrypoint(s3_minio, postgres_conn):
         or df_out["author_2_id"].str.contains("pompili", case=False).any()
     )
     # Check at least one matching lat/lon is present
-    assert df_out["author_1_lat"].notna().any(
-    ) or df_out["author_2_lat"].notna().any()
+    assert (
+        df_out["author_1_lat"].notna().any()
+        or df_out["author_2_lat"].notna().any()
+    )
