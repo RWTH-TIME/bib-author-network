@@ -49,14 +49,18 @@ def create_author_network_graph(settings):
         bib_db = bibtexparser.load(bibtex_file)
 
     # Read Table
-    db_in = PandasDatabaseOperations(settings.author_locations_input.DB_DSN)
+    db_in = PandasDatabaseOperations(
+        settings.author_locations_input.DB_DSN,
+        settings.author_locations_input.DB_SCHEMA,
+    )
     pg_input = db_in.read(table=settings.author_locations_input.DB_TABLE)
 
     author_index = build_author_index(pg_input)
     edges = coauthor_pairs(bib_db, author_index)
 
     network_out_db = PandasDatabaseOperations(
-        settings.author_network_output.DB_DSN
+        settings.author_network_output.DB_DSN,
+        settings.author_network_output.DB_SCHEMA,
     )
     network_out_db.write(
         table=settings.author_network_output.DB_TABLE, data=edges
