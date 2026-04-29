@@ -1,54 +1,17 @@
-import hashlib
 from scystream.sdk.core import entrypoint
 from scystream.sdk.env.settings import (
-    PostgresSettings,
+    DatabaseSettings,
     EnvSettings,
     InputSettings,
     OutputSettings,
-    FileSettings
+    FileSettings,
 )
 from scystream.sdk.file_handling.s3_manager import S3Operations
-from sqlalchemy import create_engine, text
-from sqlalchemy.sql import quoted_name
+from scystream.sdk.database_handling.database_manager import (
+    PandasDatabaseOperations,
+)
 from author_network.core import build_author_index, coauthor_pairs
-import pandas as pd
 import bibtexparser
-
-
-def _normalize_table_name(table_name: str) -> str:
-    max_length = 63
-    if len(table_name) <= max_length:
-        return table_name
-    digest = hashlib.sha1(table_name.encode("utf-8")).hexdigest()[:10]
-    prefix_length = max_length - len(digest) - 1
-    return f"{table_name[:prefix_length]}_{digest}"
-
-
-def _resolve_db_table(settings: PostgresSettings) -> str:
-    normalized_name = _normalize_table_name(settings.DB_TABLE)
-    settings.DB_TABLE = normalized_name
-    return normalized_name
-
-
-def _make_engine(settings: PostgresSettings):
-    return create_engine(
-        f"postgresql+psycopg2://{settings.PG_USER}:{settings.PG_PASS}"
-        f"@{settings.PG_HOST}:{int(settings.PG_PORT)}/"
-    )
-
-
-def read_table_from_postgres(settings: PostgresSettings) -> pd.DataFrame:
-    resolved_table_name = _resolve_db_table(settings)
-    engine = _make_engine(settings)
-    query = text(f'SELECT * FROM "{resolved_table_name}";')
-    return pd.read_sql(query, engine)
-
-
-def write_df_to_postgres(df: pd.DataFrame, settings: PostgresSettings):
-    resolved_table_name = _resolve_db_table(settings)
-    engine = _make_engine(settings)
-    table_name = quoted_name(resolved_table_name, quote=True)
-    df.to_sql(table_name, engine, if_exists="replace", index=False)
 
 
 def load_bib_file(path: str):
@@ -57,11 +20,11 @@ def load_bib_file(path: str):
         return bibtexparser.load(bib_file)
 
 
-class AuthorNetwork(PostgresSettings, OutputSettings):
+class AuthorNetwork(DatabaseSettings, OutputSettings):
     __identifier__ = "author_network"
 
 
-class AuthorLocations(PostgresSettings, InputSettings):
+class AuthorLocations(DatabaseSettings, InputSettings):
     __identifier__ = "author_locations"
 
 
@@ -86,9 +49,19 @@ def create_author_network_graph(settings):
         bib_db = bibtexparser.load(bibtex_file)
 
     # Read Table
-    pg_input = read_table_from_postgres(settings.author_locations_input)
+    db_in = PandasDatabaseOperations(
+        settings.author_locations_input.DB_DSN,
+        settings.author_locations_input.DB_SCHEMA,
+    )
+    pg_input = db_in.read(table=settings.author_locations_input.DB_TABLE)
 
     author_index = build_author_index(pg_input)
     edges = coauthor_pairs(bib_db, author_index)
 
-    write_df_to_postgres(edges, settings.author_network_output)
+    network_out_db = PandasDatabaseOperations(
+        settings.author_network_output.DB_DSN,
+        settings.author_network_output.DB_SCHEMA,
+    )
+    network_out_db.write(
+        table=settings.author_network_output.DB_TABLE, data=edges
+    )
